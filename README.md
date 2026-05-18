@@ -10,20 +10,18 @@
 
 👉 [Read the Full Google Research Paper Here](https://research.google/pubs/the-tail-at-scale/)
 
-The project models a real-world architectural challenge—preventing heavy background batch processes from degrading high-priority interactive user experiences—using an intuitive **Coffee Shop Analogy** (Live Walk-In Commuters vs. Bulk Office Catering Orders).
+The project models a real world architectural challenge preventing heavy background batch processes from degrading high priority interactive user experiences using an intuitive **Coffee Shop Analogy** (Live Wal In Commuters vs. Bulk Office Catering Orders).
 
-When a massive flood of asynchronous background work hits the system, a traditional First-In, First-Out (FIFO) queue causes severe **Head-of-Line (HoL) Blocking**, driving up p99/p99.9 tail latency for active users. This orchestrator eliminates that micro-variability by implementing **Differentiated Service Classes** natively at the application layer.
+When a massive flood of asynchronous background work hits the system, a traditional First-In, First-Out (FIFO) queue causes severe **Head-of-Line (HoL) Blocking**, driving up p99/p99.9 tail latency for active users. This orchestrator eliminates that micro variability by implementing **Differentiated Service Classes** natively at the application layer.
 
 ### 🛠️ Key Architectural Highlights
 
-* **Dual-Channel Isolation:** Completely separates incoming workloads into parallel, thread-safe memory buffers (`liveChan` and `cateringChan`) to eliminate memory contention.
+* **Dual-Channel Isolation:** Completely separates incoming workloads into parallel, thread safe memory buffers (`liveChan` and `cateringChan`) to eliminate memory contention.
 * **Biased Select Pattern:** Leverages Go's native concurrency primitives to intentionally break default channel fairness, ensuring worker goroutines (baristas) prioritize interactive traffic first.
-* **Double-Check Concurrency Guard:** Implements a nested, non-blocking check right before executing lower-priority tasks. This prevents context-switching delays if an interactive user request arrives at the exact microsecond a worker becomes free.
-* **Zero-Allocation Backpressure:** Minimizes heap-allocation overhead during peak traffic spikes by utilizing pre-buffered ring channels, keeping execution times highly deterministic.
+* **Double-Check Concurrency Guard:** Implements a nested, non-blocking check right before executing lower priority tasks. This prevents context-switching delays if an interactive user request arrives at the exact microsecond a worker becomes free.
+* **Zero-Allocation Backpressure:** Minimizes heap allocation overhead during peak traffic spikes by utilizing pre-buffered ring channels, keeping execution times highly deterministic.
 
 
-## References
-- [The Tail at Scale](https://research.google/pubs/the-tail-at-scale/)
 ## How to Run
 
 1.  Make sure you have Go installed.
