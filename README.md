@@ -76,35 +76,5 @@ You should see in the server logs that the `⚡ [LIVE INTERACTIVE]` order gets p
 
 
 
-[ TRAFFIC SOURCES ]
-                             (Curl / Browser)
-                                    |
-                                    v
-                          HTTP POST /order endpoint
-                                    |
-                           +--------+---------+
-                           | ORDER ORCHESTRATOR | (The Dispatcher)
-                           | Inspects Order Type|
-                           +----+--------+----+
-                                |        |
-             [Type: Live] ------+        +------ [Type: Catering]
-                                |        |
-                                v        v
-                       +--------+--+ +---+--------+
-                       |  liveChan | |cateringChan|  (Buffered 
-                       |  (H-Prio) | |  (L-Prio)  |   Go Channels)
-                       +--------+--+ +---+--------+
-                                |        |
-                                v        v
-                       +--------+--------+--------+
-                       |   BARISTA WORKER POOL    |
-                       |                          |
-                       | * BIASED SELECT ENGINE * | (Pulls High-Prio
-                       | * DOUBLE-CHECK GUARD   * |  tasks first)
-                       +------------+-------------+
-                                    |
-                                    v
-                           [ SIMULATED EXECUTION ]
-                             (Variable time.Sleep)
 
 
