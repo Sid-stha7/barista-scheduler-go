@@ -1,4 +1,4 @@
-## ☕️ Project Overview: Barista Order Scheduler
+##  Project Overview: Barista Order Scheduler
 
 **Barista Order Scheduler** is a high-performance, concurrent HTTP microservice built in Go that demonstrates component-level latency mitigation strategies outlined in Google's foundational paper, **"The Tail at Scale"**. 
 
