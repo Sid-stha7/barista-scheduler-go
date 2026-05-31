@@ -70,18 +70,21 @@ You should see in the server logs that the `⚡ [LIVE INTERACTIVE]` order gets p
 ## Test Time-Slicing Logic (Reducing HoL Blocking)
 To see the application-level preemption engine in action, trigger a massive wholesale job that takes up thread time, then interrupt it with an interactive user request.
 
-Step A: Fire the massive background task
-Bash
+## Step A: Fire the massive background task
+```bash
 curl -X POST http://localhost:8080/order \
   -H "Content-Type: application/json" \
-  -d '{"item": "Grind 20lbs Wholesale Beans", "type": "wholesale"}'
-Step B: Interrupt it mid-loop
+  -d '{"item": "Grind 20lbs Wholesale Beans", "type": "wholesale"}' 
+  ```
+
+## Step B: Interrupt it mid-loop
 Watch your server terminal. The moment you see Finished chunk 1/5 or 2/5 print out, immediately execute this live command in your client terminal window:
 
-Bash
+```bash
 curl -X POST http://localhost:8080/order \
   -H "Content-Type: application/json" \
   -d '{"item": "Quick Commuter Coffee", "type": "live"}'
+  ```
 
 ## What to observe: Instead of waiting for all 5 chunks to finish processing, the single active worker thread freezes the wholesale loop at the next chunk boundary, logs an [INTERRUPT], processes the Quick Commuter Coffee with near-zero latency, and then logs a [RESUME] to complete the remaining background chunks seamlessly.
 
