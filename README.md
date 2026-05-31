@@ -49,7 +49,7 @@ curl -X POST http://localhost:8080/order \
   -d '{"item": "10x Cappuccinos", "type": "catering"}'
 ```
 
-### 3. Test Priority Logic
+### Test Priority Logic
 To see the priority logic in action, you can send many catering orders and then a live order.
 
 On Mac/Linux, you can run this command to flood the server with 20 catering orders: (!Note:This will create a queue of 20 catering orders, which will be processed after the live orders in the queue, You can change the number of catering orders by changing the number in the for loop, eg. change 20 to 100 to flood the server with 100 catering orders)
@@ -65,6 +65,26 @@ curl -X POST http://localhost:8080/order -H "Content-Type: application/json" -d 
 ```
 
 You should see in the server logs that the `⚡ [LIVE INTERACTIVE]` order gets prioritized or processed quickly despite the queue of `📦 [BATCH CATERING]` orders.
+
+
+## Test Time-Slicing Logic (Reducing HoL Blocking)
+To see the application-level preemption engine in action, trigger a massive wholesale job that takes up thread time, then interrupt it with an interactive user request.
+
+Step A: Fire the massive background task
+Bash
+curl -X POST http://localhost:8080/order \
+  -H "Content-Type: application/json" \
+  -d '{"item": "Grind 20lbs Wholesale Beans", "type": "wholesale"}'
+Step B: Interrupt it mid-loop
+Watch your server terminal. The moment you see Finished chunk 1/5 or 2/5 print out, immediately execute this live command in your client terminal window:
+
+Bash
+curl -X POST http://localhost:8080/order \
+  -H "Content-Type: application/json" \
+  -d '{"item": "Quick Commuter Coffee", "type": "live"}'
+
+## What to observe: Instead of waiting for all 5 chunks to finish processing, the single active worker thread freezes the wholesale loop at the next chunk boundary, logs an [INTERRUPT], processes the Quick Commuter Coffee with near-zero latency, and then logs a [RESUME] to complete the remaining background chunks seamlessly.
+
 
 ## Output Colors
 - **[System]**: Blue
