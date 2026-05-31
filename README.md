@@ -86,7 +86,8 @@ curl -X POST http://localhost:8080/order \
   -d '{"item": "Quick Commuter Coffee", "type": "live"}'
   ```
 
-## What to observe: Instead of waiting for all 5 chunks to finish processing, the single active worker thread freezes the wholesale loop at the next chunk boundary, logs an [INTERRUPT], processes the Quick Commuter Coffee with near-zero latency, and then logs a [RESUME] to complete the remaining background chunks seamlessly.
+## What to observe: 
+Instead of waiting for all 5 chunks to finish processing, the single active worker thread freezes the wholesale loop at the next chunk boundary, logs an [INTERRUPT], processes the Quick Commuter Coffee with near-zero latency, and then logs a [RESUME] to complete the remaining background chunks seamlessly.
 
 
 ## Output Colors
