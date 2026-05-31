@@ -11,8 +11,9 @@ import (
 
 // Order Types (Service Classes)
 const (
-	ClassLive     = "live"     // Interactive: high-priority walk-in/app orders
-	ClassCatering = "catering" // Batch: low-priority bulk office orders
+	ClassLive      = "live"      // Interactive: high-priority walk-in/app orders
+	ClassCatering  = "catering"  // Batch: low-priority bulk office orders
+	ClassWholesale = "wholesale" // Heavy Batch: Massive tasks requiring time-slicing
 )
 
 // Order represents our incoming request payload
@@ -26,7 +27,7 @@ type Order struct {
 // OrderOrchestrator manages our priority queues and baristas
 type OrderOrchestrator struct {
 	liveChan     chan Order
-	cateringChan chan Order
+	batchChan    chan Order
 	workerWg     sync.WaitGroup
 	quit         chan struct{}
 	orderCounter int
@@ -35,9 +36,9 @@ type OrderOrchestrator struct {
 
 func NewOrderOrchestrator(bufferSize int) *OrderOrchestrator {
 	return &OrderOrchestrator{
-		liveChan:     make(chan Order, bufferSize),
-		cateringChan: make(chan Order, bufferSize),
-		quit:         make(chan struct{}),
+		liveChan:  make(chan Order, bufferSize),
+		batchChan: make(chan Order, bufferSize),
+		quit:      make(chan struct{}),
 	}
 }
 
@@ -69,21 +70,25 @@ func (oo *OrderOrchestrator) baristaWorker(id int) {
 		case order := <-oo.liveChan:
 			oo.prepare(id, order)
 
-		case order := <-oo.cateringChan:
-			// Double-Check Guard: Ensure a live order didn't slip into the channel
-			// right as this worker became free.
+		case order := <-oo.batchChan:
 			select {
 			case liveOrder := <-oo.liveChan:
-				// Subliminal Bypass: Put the catering order back, save the commuter!
-				oo.cateringChan <- order
-				oo.prepare(id, liveOrder)
+				oo.batchChan <- order
+				oo.routeOrder(id, liveOrder)
 			default:
-				oo.prepare(id, order)
+				oo.routeOrder(id, order)
 			}
-
 		case <-oo.quit:
 			return
 		}
+	}
+}
+
+func (oo *OrderOrchestrator) routeOrder(baristaID int, o Order) {
+	if o.Type == ClassWholesale {
+		oo.processHeavyTask(baristaID, o)
+	} else {
+		oo.prepare(baristaID, o) // prepare handles both Live and Catering
 	}
 }
 
@@ -124,18 +129,44 @@ func (oo *OrderOrchestrator) Submit(item string, orderType string) Order {
 	if orderType == ClassLive {
 		oo.liveChan <- order
 	} else {
-		oo.cateringChan <- order
+		oo.batchChan <- order
 	}
 	return order
+}
+
+func (oo *OrderOrchestrator) processHeavyTask(baristaID int, o Order) {
+	chunks := 10 // 10 bags of beans to grind
+
+	fmt.Printf("[Barista %d] ⚙️ Starting massive background task: %s\n", baristaID, o.Item)
+
+	for i := 1; i <= chunks; i++ {
+		// Do a fraction of the heavy work (The "Slice")
+		time.Sleep(1000 * time.Millisecond)
+		fmt.Printf("[Barista %d] ⚙️ Finished chunk %d/%d of %s\n", baristaID, i, chunks, o.Item)
+
+		// (Yield) Check if a high-priority order arrived while we were grinding
+		select {
+		case liveOrder := <-oo.liveChan:
+			fmt.Printf("  ⏸️ [INTERRUPT] Barista %d pausing %s to handle a Live Walk-in!\n", baristaID, o.Item)
+
+			// Process the live order immediately
+			oo.prepare(baristaID, liveOrder)
+
+			fmt.Printf("  ▶️ [RESUME] Barista %d resuming %s\n", baristaID, o.Item)
+		default:
+			// No live orders waiting. Safely continue to the next chunk of heavy work.
+		}
+	}
+
+	fmt.Printf("[Barista %d] Finished massive background task: %s\n", baristaID, o.Item)
 }
 
 func main() {
 	orchestrator := NewOrderOrchestrator(500)
 
-	// Start with a small worker pool (2 baristas) to make queue constraints visible
-	orchestrator.StartBaristas(2)
+	// Start with just 1 barista to make the time-slicing highly visible
+	orchestrator.StartBaristas(1)
 
-	// API Endpoint to ingest orders
 	http.HandleFunc("/order", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -144,7 +175,7 @@ func main() {
 
 		var req struct {
 			Item string `json:"item"`
-			Type string `json:"type"` // "live" or "catering"
+			Type string `json:"type"`
 		}
 
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -152,8 +183,8 @@ func main() {
 			return
 		}
 
-		if req.Type != ClassLive && req.Type != ClassCatering {
-			http.Error(w, "Invalid type. Must be 'live' or 'catering'", http.StatusBadRequest)
+		if req.Type != ClassLive && req.Type != ClassCatering && req.Type != ClassWholesale {
+			http.Error(w, "Invalid type. Must be 'live', 'catering', or 'wholesale'", http.StatusBadRequest)
 			return
 		}
 
@@ -168,7 +199,7 @@ func main() {
 		})
 	})
 
-	log.Println("\033[35m[Server]\033[0m Running on :8080...")
+	log.Println("[Server] Running on :8080...")
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		log.Fatal(err)
 	}
